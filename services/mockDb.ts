@@ -192,10 +192,11 @@ class DatabaseService {
       email,
       name,
       role: UserRole.USER,
-      tokens: 100 + (referralCode ? 50 : 0),
+      tokens: 100,
       xp: 0,
       level: 1,
       referralCode: `REF-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+      referredBy: referralCode || undefined,
       transactions: [],
       votedServerIds: [],
       reviewedServerIds: [],
@@ -203,13 +204,19 @@ class DatabaseService {
     };
     users.push(newUser);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+    // Process referral after registration
+    if (referralCode) {
+      this.processReferral(newUser.id, referralCode);
+    }
+
     this.notify();
     return newUser;
   }
 
   async authTelegramUser(tgUser: any, referralCode?: string): Promise<User> {
     const userId = tgUser.id.toString();
-    
+
     // 1. Try cloud lookup
     try {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -234,10 +241,11 @@ class DatabaseService {
       username: tgUser.username,
       avatarUrl: tgUser.photo_url,
       role: UserRole.USER,
-      tokens: 100 + (referralCode ? 50 : 0),
+      tokens: 100,
       xp: 0,
       level: 1,
       referralCode: `TG-${userId}`,
+      referredBy: referralCode || undefined,
       transactions: [],
       votedServerIds: [],
       reviewedServerIds: [],
@@ -254,12 +262,62 @@ class DatabaseService {
         tokens: newUser.tokens,
         xp: newUser.xp,
         level: newUser.level,
-        referral_code: newUser.referralCode
+        referral_code: newUser.referralCode,
+        referred_by: newUser.referredBy
       });
     } catch (e) {}
-    
+
+    // Process referral after registration
+    if (referralCode) {
+      await this.processReferral(newUser.id, referralCode);
+    }
+
     this.setCurrentUser(newUser);
     return newUser;
+  }
+
+  async processReferral(newUserId: string, referralCode: string): Promise<void> {
+    // Find referrer by referral code
+    const users = this.getUsers();
+    const referrer = users.find(u => u.referralCode === referralCode);
+    if (!referrer) return;
+
+    // Award 200 VT to referrer
+    referrer.tokens += 200;
+    referrer.transactions.push({
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'REFERRAL',
+      amount: 200,
+      description: 'Бонус за приглашение друга',
+      createdAt: new Date().toISOString()
+    });
+
+    // Award 200 VT to new user
+    const newUser = users.find(u => u.id === newUserId);
+    if (newUser) {
+      newUser.tokens += 200;
+      newUser.transactions.push({
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'REFERRAL',
+        amount: 200,
+        description: 'Бонус за регистрацию по рефералу',
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+    // Sync to cloud
+    try {
+      await supabase.from('profiles').update({ tokens: referrer.tokens }).eq('id', referrer.id);
+      if (newUser) {
+        await supabase.from('profiles').update({ tokens: newUser.tokens }).eq('id', newUser.id);
+      }
+    } catch (e) {
+      console.warn("Cloud sync of referral failed");
+    }
+
+    this.notify();
   }
 
   // --- ECONOMY & INTERACTION ---

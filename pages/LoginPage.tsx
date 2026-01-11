@@ -51,7 +51,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ setUser }) => {
       tg.expand(); // Expand to full height
     }
 
-    // 2. Global callback for Telegram Login Widget
+    // 2. Parse referral code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref) {
+      setReferralCode(ref.toUpperCase());
+    }
+
+    // 3. Global callback for Telegram Login Widget
     window.onTelegramAuth = (user: any) => {
       handleTelegramAuth(user);
     };

@@ -130,7 +130,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
   };
 
   const copyReferral = () => {
-    navigator.clipboard.writeText(user.referralCode);
+    const referralLink = `https://gamewallet-one.vercel.app/?ref=${user.referralCode}`;
+    navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

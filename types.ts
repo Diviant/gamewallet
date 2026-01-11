@@ -24,7 +24,7 @@ export interface Tag {
 
 export interface Transaction {
   id: string;
-  type: 'FAVORITE_ADD' | 'FAVORITE_REMOVE' | 'REFERRAL' | 'BONUS' | 'SERVER_REVIEW' | 'PURCHASE' | 'INVESTMENT' | 'DIVIDEND';
+  type: 'FAVORITE_ADD' | 'FAVORITE_REMOVE' | 'REFERRAL' | 'BONUS' | 'SERVER_REVIEW' | 'PURCHASE' | 'INVESTMENT' | 'DIVIDEND' | 'WITHDRAWAL';
   amount: number;
   description: string;
   createdAt: string;

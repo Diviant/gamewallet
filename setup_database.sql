@@ -10,6 +10,7 @@ CREATE TABLE profiles (
   xp INTEGER DEFAULT 0,
   level INTEGER DEFAULT 1,
   referral_code TEXT,
+  referred_by TEXT,
   reviewed_server_ids TEXT[] DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -52,8 +53,8 @@ CREATE TABLE investments (
 );
 
 -- Insert initial admin user
-INSERT INTO profiles (id, name, username, avatar_url, tokens, xp, level, referral_code, reviewed_server_ids, created_at)
-VALUES ('u1', 'Vault Admin', NULL, 'https://picsum.photos/seed/admin/200', 1000, 0, 1, 'VAULT-ADMIN', '{}', '2024-01-01T00:00:00Z');
+INSERT INTO profiles (id, name, username, avatar_url, tokens, xp, level, referral_code, referred_by, reviewed_server_ids, created_at)
+VALUES ('u1', 'Vault Admin', NULL, 'https://picsum.photos/seed/admin/200', 1000, 0, 1, 'VAULT-ADMIN', NULL, '{}', '2024-01-01T00:00:00Z');
 
 -- Insert initial servers
 INSERT INTO servers (id, title, description, short_description, ip, game_id, version, max_players, current_players, status, icon_url, images, tags, featured, added_by_id, views, days_online, total_invested, investment_tier, created_at, updated_at)
