@@ -61,6 +61,7 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
   const totalROI = investments.length > 0 
     ? (investments.reduce((sum, inv) => sum + inv.roi, 0) / investments.length).toFixed(1)
     : 0;
+  const myInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -100,10 +101,11 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-               <SummaryMiniCard label="Средняя доходность" value={`${totalROI}%`} color="text-emerald-400" />
-               <SummaryMiniCard label="Активных вкладов" value={investments.length} color="text-indigo-400" />
-               <SummaryMiniCard label="Накоплено бонусов" value={0} sub="VT" color="text-amber-400" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+              <SummaryMiniCard label="Средняя доходность" value={`${totalROI}%`} color="text-emerald-400" />
+              <SummaryMiniCard label="Активных вкладов" value={investments.length} color="text-indigo-400" />
+              <SummaryMiniCard label="Мои вложения" value={myInvested} sub="VT" color="text-amber-400" />
+              <SummaryMiniCard label="Накоплено бонусов" value={0} sub="VT" color="text-rose-400" />
             </div>
 
             <div className="bg-[#151518] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
