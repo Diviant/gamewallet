@@ -37,6 +37,7 @@ import {
   Info
 } from 'lucide-react';
 import { db } from '../services/mockDb';
+import { supabase } from '../services/supabase';
 import { User, UserRole, Transaction, Server } from '../types';
 
 const getRankTitle = (level: number) => {
@@ -57,6 +58,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
 
   const [name, setName] = useState(user.name);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>(user.avatarUrl || '');
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<'history' | 'settings'>('history');
@@ -70,6 +74,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
     return () => unsubscribe();
   }, [setUser]);
 
+  useEffect(() => {
+    setPreviewUrl(avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`);
+  }, [avatarUrl, user.id]);
+
   const favoritesCount = db.getFavorites(user.id).length;
   const transactions = [...(user.transactions || [])].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -78,17 +86,47 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
   const xpStats = db.getXpProgress(user);
   const rankInfo = getRankTitle(user.level);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
-      const updatedUser = { ...user, name, avatarUrl };
-      db.setCurrentUser(updatedUser);
-      setUser(updatedUser);
-      setIsSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 600);
+
+    let finalAvatar = avatarUrl;
+
+    // If a file is selected, try to upload to Supabase storage and get public URL.
+    if (selectedFile) {
+      try {
+        const filePath = `avatars/${user.id}_${Date.now()}`;
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, selectedFile, { upsert: true });
+        if (!uploadError) {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          if (data && data.publicUrl) {
+            finalAvatar = data.publicUrl;
+          }
+        }
+      } catch (err) {
+        console.warn('Avatar upload failed, falling back to local data URL', err);
+      }
+    }
+
+    // If no uploaded URL, but we have a preview (data URL), use it
+    if (!finalAvatar && previewUrl) {
+      finalAvatar = previewUrl;
+    }
+
+    // save locally and attempt cloud profile update
+    const updatedUser = { ...user, name, avatarUrl: finalAvatar };
+    db.setCurrentUser(updatedUser);
+    setUser(updatedUser);
+
+    try {
+      await supabase.from('profiles').update({ avatar_url: finalAvatar, name }).eq('id', user.id);
+    } catch (e) {}
+
+    setAvatarUrl(finalAvatar || '');
+    setSelectedFile(null);
+    setIsSaving(false);
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
   };
 
   const copyReferral = () => {
@@ -105,15 +143,27 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-500/5 blur-[100px] rounded-full -ml-20 -mb-20"></div>
 
         <div className="relative flex flex-col md:flex-row items-center gap-10">
-          <div className="relative group">
+            <div className="relative group">
             <div className={`w-36 h-36 md:w-44 md:h-44 rounded-full border-4 border-white/10 overflow-hidden shadow-2xl bg-[#0a0a0c] p-1.5 transition-transform duration-500 group-hover:scale-105`}>
               <div className="w-full h-full rounded-full overflow-hidden">
-                <img src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} alt="" className="w-full h-full object-cover" />
+                <img src={previewUrl || user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} alt="" className="w-full h-full object-cover" />
               </div>
             </div>
-            <button className="absolute bottom-1 right-1 p-3 bg-amber-500 rounded-2xl shadow-xl border-4 border-[#151518] text-[#0a0a0c] hover:bg-amber-400 transition-colors">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-1 right-1 p-3 bg-amber-500 rounded-2xl shadow-xl border-4 border-[#151518] text-[#0a0a0c] hover:bg-amber-400 transition-colors">
               <Camera className="w-5 h-5" />
             </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(ev) => {
+              const f = ev.target.files && ev.target.files[0];
+              if (!f) return;
+              setSelectedFile(f);
+              const reader = new FileReader();
+              reader.onload = () => {
+                setPreviewUrl(reader.result as string);
+              };
+              reader.readAsDataURL(f);
+            }} />
           </div>
 
           <div className="flex-grow text-center md:text-left space-y-4">
@@ -259,11 +309,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Ссылка на аватар</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Загрузить фото</label>
+                        <div className="flex items-center gap-3">
+                          <div className="w-20 h-20 rounded-full overflow-hidden border border-white/5">
+                            <img src={previewUrl || avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-indigo-600 rounded-2xl font-black">Выбрать</button>
+                            <button type="button" onClick={() => { setSelectedFile(null); setPreviewUrl(''); setAvatarUrl(''); }} className="px-4 py-2 bg-rose-600 rounded-2xl font-black">Удалить</button>
+                          </div>
+                        </div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Или ссылка на аватар</label>
                         <input 
                           type="text" 
                           value={avatarUrl} 
-                          onChange={(e) => setAvatarUrl(e.target.value)} 
+                          onChange={(e) => { setAvatarUrl(e.target.value); setPreviewUrl(e.target.value); }} 
                           className="w-full bg-[#0a0a0c] border border-white/5 rounded-2xl py-4 px-5 text-sm text-white focus:ring-1 focus:ring-amber-500 outline-none transition-all" 
                           placeholder="https://..."
                         />
