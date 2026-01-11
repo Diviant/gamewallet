@@ -160,7 +160,14 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
               setSelectedFile(f);
               const reader = new FileReader();
               reader.onload = () => {
-                setPreviewUrl(reader.result as string);
+                const dataUrl = reader.result as string;
+                setPreviewUrl(dataUrl);
+                setAvatarUrl(dataUrl);
+
+                // Persist immediately locally so avatar appears without extra save click
+                const updatedUserImmediate = { ...user, avatarUrl: dataUrl };
+                db.setCurrentUser(updatedUserImmediate);
+                setUser(updatedUserImmediate);
               };
               reader.readAsDataURL(f);
             }} />
@@ -316,7 +323,14 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, setUser }) => {
                           </div>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-indigo-600 rounded-2xl font-black">Выбрать</button>
-                            <button type="button" onClick={() => { setSelectedFile(null); setPreviewUrl(''); setAvatarUrl(''); }} className="px-4 py-2 bg-rose-600 rounded-2xl font-black">Удалить</button>
+                            <button type="button" onClick={() => {
+                              setSelectedFile(null);
+                              setPreviewUrl('');
+                              setAvatarUrl('');
+                              const updatedUserRemoved = { ...user, avatarUrl: '' };
+                              db.setCurrentUser(updatedUserRemoved);
+                              setUser(updatedUserRemoved);
+                            }} className="px-4 py-2 bg-rose-600 rounded-2xl font-black">Удалить</button>
                           </div>
                         </div>
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Или ссылка на аватар</label>
