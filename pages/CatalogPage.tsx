@@ -30,6 +30,11 @@ const CatalogPage: React.FC = () => {
     };
     loadServers();
     setSelectedGame(gameParam);
+
+    const unsubscribe = db.subscribe(() => {
+      setServers(db.getServers());
+    });
+    return () => unsubscribe();
   }, [gameParam]);
 
   const games = db.getGames();
@@ -43,7 +48,15 @@ const CatalogPage: React.FC = () => {
   }, [servers, search, selectedGame]);
 
   const sortedByPlayers = useMemo(() => {
-    const sorted = [...filteredServers].sort((a, b) => (b.currentPlayers || 0) - (a.currentPlayers || 0));
+    const inv = db.getInvestments();
+    const totals: Record<string, number> = {};
+    inv.forEach(i => { totals[i.serverId] = (totals[i.serverId] || 0) + (i.amount || 0); });
+    const sorted = [...filteredServers].sort((a, b) => {
+      const ta = totals[a.id] || 0;
+      const tb = totals[b.id] || 0;
+      if (tb !== ta) return tb - ta;
+      return (b.currentPlayers || 0) - (a.currentPlayers || 0);
+    });
     return expandPopular ? sorted : sorted.slice(0, 10);
   }, [filteredServers, expandPopular]);
 
@@ -265,17 +278,17 @@ const ServerListItem: React.FC<{ server: Server }> = ({ server }) => {
         </div>
 
         <div className="flex-shrink-0 flex md:flex-col items-center justify-between md:items-end w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-white/5">
-          <div className="flex items-center gap-2 mb-1">
-             <div className="relative">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping absolute inset-0"></div>
-                <div className="w-2 h-2 rounded-full bg-emerald-500 relative"></div>
+             <div className="flex items-center gap-2 mb-1">
+               <div className="relative">
+                 <div className="w-2 h-2 rounded-full bg-amber-500 absolute inset-0"></div>
+                 <div className="w-2 h-2 rounded-full bg-amber-500 relative"></div>
+               </div>
+               <span className="text-2xl font-black text-white italic tabular-nums">{(db.getInvestments().filter(i => i.serverId === server.id).reduce((s, x) => s + (x.amount || 0), 0)).toLocaleString()}</span>
              </div>
-             <span className="text-2xl font-black text-white italic tabular-nums">{server.currentPlayers.toLocaleString()}</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[2px]">Игроков</span>
-            <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">из {server.maxPlayers.toLocaleString()}</span>
-          </div>
+             <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-[2px]">Вложено</span>
+              <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">VT</span>
+             </div>
           
           <div className="md:mt-4 p-2 bg-white/5 rounded-xl group-hover:bg-amber-500 group-hover:text-black transition-all">
              <ChevronRight className="w-4 h-4" />

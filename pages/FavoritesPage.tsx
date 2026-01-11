@@ -28,6 +28,11 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ user }) => {
   const allServers = db.getServers();
   const favoriteServers = allServers.filter(s => favorites.some(f => f.serverId === s.id));
 
+  React.useEffect(() => {
+    const unsubscribe = db.subscribe(() => {});
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="flex items-center gap-4 mb-10">
@@ -55,13 +60,9 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ user }) => {
                 <p className="text-sm text-slate-500 line-clamp-2 mb-4">{server.shortDescription}</p>
                 <div className="flex items-center justify-between pt-4 border-t border-slate-800">
                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold">
+                        <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
                           <Signal className="w-3 h-3" />
-                          <span>{server.currentPlayers}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-slate-500 text-xs font-bold">
-                          <Users className="w-3 h-3" />
-                          <span>{server.maxPlayers}</span>
+                          <span>{db.getInvestments().filter(i => i.serverId === server.id).reduce((s, x) => s + (x.amount || 0), 0).toLocaleString()} VT</span>
                         </div>
                    </div>
                 </div>

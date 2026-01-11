@@ -225,8 +225,8 @@ const InvestmentMarketCard = ({ server }: { server: Server }) => {
           <div>
              <h3 className="text-lg font-black text-white uppercase italic tracking-tighter group-hover:text-indigo-400 transition-colors">{server.title}</h3>
              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                <span className="text-[10px] font-black text-slate-500 uppercase">{server.currentPlayers} ОНЛАЙН</span>
+               <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+               <span className="text-[10px] font-black text-slate-500 uppercase">{db.getInvestments().filter(i => i.serverId === server.id).reduce((s, x) => s + (x.amount || 0), 0).toLocaleString()} VT вложено</span>
              </div>
           </div>
        </div>
