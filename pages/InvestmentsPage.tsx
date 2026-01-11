@@ -36,6 +36,18 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
     }
   };
 
+  const handleWithdraw = async (invId: string) => {
+    if (!user) return;
+    if (!confirm('Вы уверены, что хотите вывести этот вклад?')) return;
+    const res = await db.withdrawInvestment(user.id, invId);
+    if (res.success) {
+      loadData();
+      alert(`Выведено ${res.amountReturned} VT`);
+    } else {
+      alert(`Не удалось вывести: ${res.error}`);
+    }
+  };
+
   useEffect(() => {
     loadData();
     const unsubscribe = db.subscribe(loadData);
@@ -122,7 +134,10 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
                             <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-black tracking-widest">+{inv.roi}%</span>
                           </td>
                           <td className="px-8 py-5 text-right">
-                             <span className="text-sm font-black text-emerald-400">0.0 VT</span>
+                             <div className="flex items-center justify-end gap-3">
+                               <span className="text-sm font-black text-emerald-400">{(inv.accumulatedDividends||0).toFixed(2)} VT</span>
+                               <button onClick={() => handleWithdraw(inv.id)} className="px-3 py-2 bg-rose-600 rounded-xl text-[12px] font-black">Вывести</button>
+                             </div>
                           </td>
                         </tr>
                       )) : (

@@ -298,6 +298,45 @@ class DatabaseService {
     return all.filter((i: Investment) => i.userId === userId);
   }
 
+  async withdrawInvestment(userId: string, investmentId: string): Promise<{ success: boolean; amountReturned?: number; error?: string }> {
+    const investments = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVESTMENTS) || '[]');
+    const index = investments.findIndex((i: Investment) => i.id === investmentId && i.userId === userId);
+    if (index === -1) return { success: false, error: 'Investment not found' };
+
+    const inv: Investment = investments[index];
+    const amountToReturn = (inv.amount || 0) + (inv.accumulatedDividends || 0);
+
+    // remove investment locally
+    investments.splice(index, 1);
+    localStorage.setItem(STORAGE_KEYS.INVESTMENTS, JSON.stringify(investments));
+
+    // credit user
+    const user = this.getCurrentUser();
+    if (user && user.id === userId) {
+      user.tokens = (user.tokens || 0) + amountToReturn;
+      user.transactions = user.transactions || [];
+      user.transactions.push({
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'WITHDRAWAL',
+        amount: amountToReturn,
+        description: `Вывод вклада из ${inv.serverTitle}`,
+        createdAt: new Date().toISOString()
+      });
+      this.setCurrentUser(user);
+    }
+
+    // attempt cloud sync: update profile tokens and remove investment record
+    try {
+      await supabase.from('profiles').update({ tokens: (user && user.tokens) || 0 }).eq('id', userId);
+      await supabase.from('investments').delete().eq('id', investmentId);
+    } catch (e) {
+      console.warn('Cloud withdraw sync failed');
+    }
+
+    this.notify();
+    return { success: true, amountReturned: amountToReturn };
+  }
+
   toggleFavorite(userId: string, serverId: string) {
     let favs = JSON.parse(localStorage.getItem(STORAGE_KEYS.FAVORITES) || '[]');
     const index = favs.findIndex((f: Favorite) => f.userId === userId && f.serverId === serverId);
