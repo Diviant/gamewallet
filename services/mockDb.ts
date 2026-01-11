@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
 
 class DatabaseService {
   private listeners: Set<() => void> = new Set();
+  private dividendInterval: any = null;
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
@@ -48,6 +49,31 @@ class DatabaseService {
 
     // Attempt to sync with cloud in background
     this.fetchServers().catch(() => console.log("Operating in offline/cached mode"));
+
+    // Start automatic accrual: +1 bonus per second for each investment
+    if (!this.dividendInterval) {
+      this.dividendInterval = setInterval(() => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.INVESTMENTS) || '[]';
+          const investments = JSON.parse(raw);
+          if (!Array.isArray(investments) || investments.length === 0) return;
+
+          let changed = false;
+          for (let i = 0; i < investments.length; i++) {
+            const inv = investments[i];
+            inv.accumulatedDividends = (inv.accumulatedDividends || 0) + 1;
+            changed = true;
+          }
+
+          if (changed) {
+            localStorage.setItem(STORAGE_KEYS.INVESTMENTS, JSON.stringify(investments));
+            this.notify();
+          }
+        } catch (e) {
+          console.warn('Dividend accrual failed', e);
+        }
+      }, 1000);
+    }
   }
 
   // --- SERVER OPERATIONS ---
