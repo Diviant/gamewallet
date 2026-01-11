@@ -56,7 +56,8 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
 
   if (!user) return <Navigate to="/login" />;
 
-  const totalInvested = investments.reduce((sum, inv) => sum + inv.amount, 0);
+  const allInvestments = db.getInvestments();
+  const totalInvested = allInvestments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
   const totalROI = investments.length > 0 
     ? (investments.reduce((sum, inv) => sum + inv.roi, 0) / investments.length).toFixed(1)
     : 0;
