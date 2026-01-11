@@ -30,7 +30,22 @@ const InvestmentsPage: React.FC<InvestmentsPageProps> = ({ user }) => {
   const [investments, setInvestments] = useState<Investment[]>([]);
 
   const loadData = () => {
-    setServers(db.getServers());
+    const serversList = db.getServers();
+    const allInv = db.getInvestments();
+    const totals: Record<string, number> = {};
+    allInv.forEach(i => {
+      totals[i.serverId] = (totals[i.serverId] || 0) + (i.amount || 0);
+    });
+
+    // sort servers by total invested (descending), fallback to investmentTier
+    const sorted = serversList.slice().sort((a, b) => {
+      const ta = totals[a.id] || 0;
+      const tb = totals[b.id] || 0;
+      if (tb !== ta) return tb - ta;
+      return b.investmentTier - a.investmentTier;
+    });
+
+    setServers(sorted);
     if (user) {
       setInvestments(db.getInvestments(user.id));
     }
